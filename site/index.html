@@ -477,9 +477,14 @@ function buildChart(max){
 }
 buildChart(10);
 
-function startQuiz(){quizCount=0;document.getElementById('quizProgress').style.width='0%';nextQuiz();}
+let quizUsed=new Set();
+function startQuiz(){quizCount=0;quizUsed=new Set();document.getElementById('quizProgress').style.width='0%';nextQuiz();}
 function nextQuiz(){
-  const n=Math.floor(Math.random()*gameRange)+1; currentQuiz=n;
+  let n;
+  if(quizUsed.size>=gameRange||quizCount>=quizTotal){quizUsed=new Set();}
+  do{n=Math.floor(Math.random()*gameRange)+1;}while(quizUsed.has(n));
+  quizUsed.add(n);
+  currentQuiz=n;
   document.getElementById('quizNumber').textContent=n;
   document.getElementById('quizFeedback').textContent='';
   document.getElementById('quizFeedback').className='feedback';
@@ -503,12 +508,17 @@ function checkQuiz(btn,chosen,correct){
   quizCount++; document.getElementById('quizProgress').style.width=Math.min(100,(quizCount/quizTotal)*100)+'%';
   const nb=document.getElementById('quizNext');
   nb.textContent=quizCount>=quizTotal?'New Round! 🎉':'Next →'; nb.style.display='inline-block';
-  nb.onclick=()=>{if(quizCount>=quizTotal)quizCount=0;nextQuiz();};
+  nb.onclick=()=>{quizCount=0;quizUsed=new Set();nextQuiz();};
 }
 
-function startType(){nextType();}
+let typeUsed=new Set();
+function startType(){typeUsed=new Set();nextType();}
 function nextType(){
-  const n=Math.floor(Math.random()*gameRange)+1; currentType=n;
+  let n;
+  if(typeUsed.size>=gameRange){typeUsed=new Set();}
+  do{n=Math.floor(Math.random()*gameRange)+1;}while(typeUsed.has(n));
+  typeUsed.add(n);
+  currentType=n;
   document.getElementById('typeNumber').textContent=n;
   const inp=document.getElementById('typeInput'); inp.value='';inp.className='type-input';inp.disabled=false;inp.focus();
   document.getElementById('typeFeedback').textContent='';document.getElementById('typeFeedback').className='feedback';
@@ -521,7 +531,7 @@ function checkType(){
   if(!a)return; inp.disabled=true; document.getElementById('typeSubmit').style.display='none';
   if(a===c){inp.className='type-input correct';document.getElementById('typeFeedback').textContent='Perfect! 🎉';document.getElementById('typeFeedback').className='feedback correct';addStars(2);updateStreak(true);}
   else{inp.className='type-input wrong';document.getElementById('typeFeedback').textContent=`Answer: ${c}`;document.getElementById('typeFeedback').className='feedback wrong';updateStreak(false);}
-  const nb=document.getElementById('typeNext'); nb.style.display='inline-block'; nb.onclick=nextType;
+  const nb=document.getElementById('typeNext'); nb.style.display='inline-block'; nb.onclick=()=>{typeUsed=new Set();nextType();};
 }
 
 function startMatch(){
