@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Kira's Numerals">
+<meta name="theme-color" content="#FFF8E7">
+<title>Kira's Roman Numeral Adventure!</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&family=Fredoka+One&display=swap');
+
+  :root {
+    --bg: #FFF8E7; --card: #FFFFFF; --primary: #FF6B35; --primary-dark: #E55A2B;
+    --secondary: #4ECDC4; --accent: #FFE66D; --purple: #A78BFA; --pink: #F472B6;
+    --green: #34D399; --red: #F87171; --blue: #60A5FA; --text: #2D3436;
+    --text-light: #636E72; --shadow: 0 2px 8px rgba(0,0,0,0.08);
+    --radius: 12px; --radius-sm: 8px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100dvh; overflow: hidden; }
+  body {
+    font-family: 'Baloo 2', cursive, sans-serif;
+    background: var(--bg); color: var(--text);
+    display: flex; flex-direction: column;
+    padding-top: env(safe-area-inset-top, 0);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    padding-left: env(safe-area-inset-left, 0);
+    padding-right: env(safe-area-inset-right, 0);
+  }
+  .container {
+    flex: 1; display: flex; flex-direction: column;
+    max-width: 900px; width: 100%; margin: 0 auto;
+    padding: 0; overflow: hidden; min-height: 0;
+  }
+
+  /* Top bar: title + score + nav in one compact unit */
+  .top-bar {
+    flex-shrink: 0;
+    padding: 6px 8px 8px;
+    background: var(--bg);
+  }
+  .top-title {
+    text-align: center;
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.2rem;
+    color: var(--primary);
+    line-height: 1.1;
+    margin-bottom: 4px;
+  }
+  .score-bar {
+    display: flex; justify-content: center; gap: 12px;
+    margin-bottom: 6px;
+  }
+  .score-item {
+    background: var(--card); border-radius: 50px; padding: 4px 12px;
+    box-shadow: var(--shadow); font-weight: 700; font-size: 0.85rem;
+    display: flex; align-items: center; gap: 4px;
+    min-height: 36px;
+  }
+  .score-item .icon { font-size: 1rem; }
+  .score-item.stars { color: var(--primary); }
+  .score-item.streak { color: var(--purple); }
+  .score-item.level { color: var(--secondary); }
+
+  /* Global difficulty selector */
+  .global-diff {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+    max-width: 400px; margin: 0 auto 6px;
+  }
+  .global-diff button {
+    font-family: 'Baloo 2', cursive; font-size: 0.85rem; font-weight: 700;
+    padding: 8px 8px; min-height: 40px; width: 100%; border: 2px solid #E8E8E8; border-radius: var(--radius-sm);
+    cursor: pointer; background: var(--card); color: var(--text-light); transition: all 0.2s;
+  }
+  .global-diff button.active { border-color: var(--purple); background: var(--purple); color: white; }
+
+  .nav {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+    max-width: 400px; margin: 0 auto;
+  }
+  .nav button {
+    font-family: 'Baloo 2', cursive; font-size: 0.95rem; font-weight: 700;
+    padding: 12px 8px; min-height: 48px; width: 100%;
+    border: 2px solid transparent; border-radius: var(--radius-sm);
+    cursor: pointer; transition: all 0.2s; background: var(--card);
+    color: var(--text-light); box-shadow: var(--shadow);
+  }
+  .nav button:hover { transform: translateY(-1px); }
+  .nav button.active { background: var(--primary); color: white; border-color: var(--primary-dark); }
+
+  .panel { display: none; flex: 1; min-height: 0; }
+  .panel.active { display: flex; flex-direction: column; }
+
+  /* Chart */
+  .chart-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+  .chart-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(75px, 1fr)); gap: 5px;
+  }
+  .chart-card {
+    background: var(--card); border-radius: var(--radius-sm);
+    padding: 6px 4px; text-align: center; box-shadow: var(--shadow); transition: transform 0.15s;
+  }
+  .chart-card:hover { transform: scale(1.05); }
+  .chart-card .arabic { font-family: 'Fredoka One', cursive; font-size: 1.1rem; color: var(--primary); }
+  .chart-card .roman { font-size: 0.85rem; font-weight: 700; color: var(--text); }
+  .chart-card.special { background: linear-gradient(135deg, var(--accent), #FFF0B3); border: 2px dashed var(--primary); }
+
+  /* Quiz / Type */
+  .quiz-area, .type-area {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; max-width: 500px; margin: 0 auto; width: 100%; gap: 8px;
+  }
+  .quiz-prompt {
+    background: var(--card); border-radius: var(--radius);
+    padding: 14px 20px; box-shadow: var(--shadow); text-align: center;
+  }
+  .quiz-prompt .label { font-size: 0.8rem; color: var(--text-light); margin-bottom: 4px; }
+  .quiz-prompt .number {
+    font-family: 'Fredoka One', cursive;
+    font-size: clamp(2.5rem, 8vw, 4rem); color: var(--primary); line-height: 1.1;
+  }
+  .progress-wrap {
+    background: #E8E8E8; border-radius: 50px; height: 6px;
+    width: 100%; max-width: 250px; overflow: hidden; flex-shrink: 0;
+  }
+  .progress-bar {
+    height: 100%; background: linear-gradient(90deg, var(--secondary), var(--green));
+    border-radius: 50px; transition: width 0.3s ease;
+  }
+  .choices {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    width: 100%; max-width: 380px;
+  }
+  .choice-btn {
+    font-family: 'Baloo 2', cursive; font-size: 1.3rem; font-weight: 700;
+    padding: 16px 14px; min-height: 56px; border: 2px solid #E8E8E8; border-radius: var(--radius-sm);
+    cursor: pointer; background: var(--card); color: var(--text);
+    transition: all 0.15s; box-shadow: var(--shadow);
+  }
+  .choice-btn:hover { border-color: var(--secondary); }
+  .choice-btn.correct { background: var(--green); color: white; border-color: var(--green); animation: pop 0.3s ease; }
+  .choice-btn.wrong { background: var(--red); color: white; border-color: var(--red); animation: shake 0.3s ease; }
+  .choice-btn:disabled { cursor: default; opacity: 0.7; }
+  @keyframes pop { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+
+  .feedback {
+    font-size: 1rem; font-weight: 700; min-height: 24px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .feedback.correct { color: var(--green); }
+  .feedback.wrong { color: var(--red); }
+
+  .next-btn {
+    font-family: 'Baloo 2', cursive; font-size: 1rem; font-weight: 700;
+    padding: 12px 28px; min-height: 44px; border: none; border-radius: 50px;
+    background: var(--secondary); color: white; cursor: pointer;
+    box-shadow: var(--shadow); transition: all 0.2s;
+  }
+  .next-btn:hover { background: #3DBEB5; }
+
+  .type-input {
+    font-family: 'Fredoka One', cursive; font-size: 2rem;
+    width: 150px; padding: 8px; text-align: center;
+    border: 3px solid #E8E8E8; border-radius: var(--radius-sm);
+    background: var(--card); color: var(--text); outline: none; transition: border-color 0.2s;
+  }
+  .type-input:focus { border-color: var(--secondary); }
+  .type-input.correct { border-color: var(--green); background: #ECFDF5; }
+  .type-input.wrong { border-color: var(--red); background: #FEF2F2; }
+
+  .submit-btn {
+    font-family: 'Baloo 2', cursive; font-size: 1rem; font-weight: 700;
+    padding: 12px 28px; min-height: 44px; border: none; border-radius: 50px;
+    background: var(--primary); color: white; cursor: pointer;
+    box-shadow: var(--shadow); transition: all 0.2s;
+  }
+  .submit-btn:hover { background: var(--primary-dark); }
+
+  /* Match */
+  .match-area {
+    flex: 1; display: flex; flex-direction: column;
+    max-width: 500px; margin: 0 auto; width: 100%;
+  }
+  .match-inst { text-align: center; font-size: 0.8rem; color: var(--text-light); margin-bottom: 6px; flex-shrink: 0; }
+  .match-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px; flex: 1; min-height: 0;
+  }
+  .match-column { display: flex; flex-direction: column; gap: 5px; }
+  .match-column h3 { text-align: center; font-size: 0.75rem; color: var(--text-light); margin-bottom: 2px; flex-shrink: 0; }
+  #matchNumbers, #matchRomans {
+    flex: 1; display: flex; flex-direction: column; gap: 5px; min-height: 0;
+  }
+  .match-item {
+    font-family: 'Fredoka One', cursive; font-size: 1.4rem; padding: 14px; min-height: 52px;
+    text-align: center; border: 2px solid #E8E8E8; border-radius: var(--radius-sm);
+    background: var(--card); cursor: pointer; transition: all 0.15s;
+    box-shadow: var(--shadow); user-select: none; flex: 1;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .match-item:hover { border-color: var(--blue); }
+  .match-item.selected { border-color: var(--primary); background: #FFF0E5; }
+  .match-item.matched { border-color: var(--green); background: #ECFDF5; opacity: 0.5; cursor: default; pointer-events: none; }
+  .match-item.wrong-match { animation: shake 0.3s ease; border-color: var(--red); background: #FEF2F2; }
+  .match-footer { display: flex; justify-content: center; align-items: center; gap: 12px; flex-shrink: 0; margin-top: 6px; }
+
+  /* Lesson */
+  .lesson-area {
+    flex: 1; display: flex; flex-direction: column;
+    max-width: 650px; margin: 0 auto; width: 100%; min-height: 0;
+  }
+  .lesson-progress {
+    display: flex; justify-content: center; gap: 6px; flex-shrink: 0; margin-bottom: 8px;
+  }
+  .lesson-dot {
+    width: 26px; height: 26px; border-radius: 50%; border: 2px solid #E8E8E8;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.7rem; color: var(--text-light);
+    background: var(--card); transition: all 0.3s; cursor: pointer;
+  }
+  .lesson-dot.active { border-color: var(--primary); background: var(--primary); color: white; transform: scale(1.1); }
+  .lesson-dot.done { border-color: var(--green); background: var(--green); color: white; }
+  .lesson-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+  .lesson-card {
+    background: var(--card); border-radius: var(--radius);
+    padding: 14px 18px; box-shadow: var(--shadow);
+  }
+  .lesson-card h2 { font-family: 'Fredoka One', cursive; font-size: 1.15rem; color: var(--primary); margin-bottom: 8px; }
+  .lesson-card p { font-size: 0.85rem; line-height: 1.5; margin-bottom: 6px; }
+  .lesson-card .rule {
+    background: linear-gradient(135deg, #FFF0E5, #FFF8E7);
+    border-left: 4px solid var(--primary); border-radius: var(--radius-sm);
+    padding: 8px 12px; margin: 8px 0; font-size: 0.85rem; font-weight: 700;
+  }
+  .lesson-card .example {
+    background: #F0FDFA; border-left: 4px solid var(--secondary);
+    border-radius: var(--radius-sm); padding: 6px 10px; margin: 4px 0; font-size: 0.85rem;
+  }
+  .lesson-card .example b { color: var(--primary); font-family: 'Fredoka One', cursive; font-size: 1rem; }
+  .symbol-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin: 8px 0; }
+  .symbol-box {
+    text-align: center; padding: 8px 4px; border-radius: var(--radius-sm);
+    background: var(--card); border: 2px solid #E8E8E8; box-shadow: var(--shadow);
+  }
+  .symbol-box .roman-letter { font-family: 'Fredoka One', cursive; font-size: 1.5rem; color: var(--primary); }
+  .symbol-box .roman-val { font-weight: 700; color: var(--text-light); font-size: 0.75rem; }
+  .lesson-practice {
+    background: #F5F3FF; border-radius: var(--radius-sm);
+    padding: 12px; margin-top: 12px; text-align: center;
+  }
+  .lesson-practice h3 { color: var(--purple); font-size: 0.85rem; margin-bottom: 6px; }
+  .lesson-practice .prompt { font-family: 'Fredoka One', cursive; font-size: 1.2rem; color: var(--primary); margin-bottom: 6px; }
+  .lesson-practice .choices { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
+  .lesson-practice .choice-btn {
+    font-family: 'Baloo 2', cursive; font-size: 1.05rem; font-weight: 700;
+    padding: 12px 18px; min-height: 48px; border: 2px solid #E8E8E8; border-radius: var(--radius-sm);
+    cursor: pointer; background: var(--card); color: var(--text); transition: all 0.15s;
+  }
+  .lesson-practice .choice-btn:hover { border-color: var(--secondary); }
+  .lesson-practice .choice-btn.correct { background: var(--green); color: white; border-color: var(--green); }
+  .lesson-practice .choice-btn.wrong { background: var(--red); color: white; border-color: var(--red); }
+  .lesson-nav {
+    display: flex; justify-content: space-between; align-items: center;
+    flex-shrink: 0; margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee;
+  }
+  .lesson-nav .restart-btn {
+    font-family: 'Baloo 2', cursive; font-size: 0.8rem; font-weight: 700;
+    padding: 6px 14px; border: none; border-radius: 50px;
+    background: var(--purple); color: white; cursor: pointer; box-shadow: var(--shadow);
+  }
+  .lesson-complete { text-align: center; padding: 16px; }
+  .lesson-complete h2 { font-family: 'Fredoka One', cursive; font-size: 1.5rem; color: var(--green); }
+  .lesson-complete p { font-size: 0.95rem; color: var(--text-light); margin: 6px 0; }
+  .build-steps { margin: 8px 0; }
+  .build-step {
+    display: flex; align-items: center; gap: 6px; padding: 5px 8px; margin: 3px 0;
+    background: var(--card); border-radius: var(--radius-sm); border: 2px solid #E8E8E8; font-size: 0.8rem;
+  }
+  .build-step .step-num { font-size: 1rem; min-width: 20px; }
+  .build-step .step-text { font-weight: 700; }
+  .build-step .step-result { font-family: 'Fredoka One', cursive; font-size: 1rem; color: var(--primary); margin-left: auto; }
+
+  /* Facts */
+  .facts-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+  .facts-area { max-width: 600px; margin: 0 auto; }
+  .fact-card {
+    background: var(--card); border-radius: var(--radius);
+    padding: 12px 16px; margin-bottom: 8px; box-shadow: var(--shadow);
+    border-left: 4px solid var(--purple);
+  }
+  .fact-card h3 { color: var(--purple); margin-bottom: 3px; font-size: 0.9rem; }
+  .fact-card p { color: var(--text-light); line-height: 1.4; font-size: 0.85rem; }
+
+  .confetti-piece { position: fixed; z-index: 1000; pointer-events: none; }
+
+  @media (max-width: 600px) {
+    .container { padding: 2px 6px; }
+    .top-bar { padding: 4px 6px 6px; }
+    .top-title { font-size: 1.05rem; margin-bottom: 3px; }
+    .score-bar { gap: 8px; margin-bottom: 4px; }
+    .score-item { padding: 3px 10px; font-size: 0.8rem; min-height: 32px; }
+    .score-item .icon { font-size: 0.9rem; }
+    .global-diff { gap: 4px; margin: 0 auto 4px; grid-template-columns: repeat(4, 1fr); }
+    .global-diff button { padding: 6px 4px; min-height: 36px; font-size: 0.8rem; }
+    .nav { gap: 4px; grid-template-columns: repeat(3, 1fr); }
+    .nav button { padding: 8px 6px; min-height: 44px; font-size: 0.85rem; }
+    .choices { grid-template-columns: 1fr 1fr; gap: 8px; max-width: 320px; }
+    .choice-btn { padding: 14px 12px; min-height: 52px; font-size: 1.2rem; }
+    .match-grid { grid-template-columns: 1fr; gap: 6px; }
+    .match-item { font-size: 1.2rem; padding: 12px; min-height: 48px; }
+    .chart-grid { grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 4px; }
+    .chart-card { padding: 5px 3px; }
+    .chart-card .arabic { font-size: 1rem; }
+    .chart-card .roman { font-size: 0.8rem; }
+    .quiz-prompt { padding: 10px 14px; }
+    .quiz-prompt .number { font-size: clamp(2rem, 10vw, 3.5rem); }
+    .quiz-prompt .label { font-size: 0.75rem; }
+    .progress-wrap { height: 5px; max-width: 220px; }
+    .type-input { font-size: 1.8rem; width: 140px; padding: 8px; }
+    .symbol-grid { grid-template-columns: repeat(5, 1fr); gap: 4px; }
+    .symbol-box { padding: 6px 2px; }
+    .symbol-box .roman-letter { font-size: 1.2rem; }
+    .symbol-box .roman-val { font-size: 0.7rem; }
+    .lesson-card { padding: 10px 12px; }
+    .lesson-card h2 { font-size: 1rem; }
+    .lesson-card p { font-size: 0.8rem; }
+    .lesson-practice .choice-btn { padding: 10px 14px; min-height: 44px; font-size: 0.95rem; }
+    .fact-card { padding: 10px 12px; margin-bottom: 6px; }
+    .fact-card h3 { font-size: 0.85rem; }
+    .fact-card p { font-size: 0.8rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="top-bar">
+    <div class="top-title">Kira's Roman Numeral Adventure! ✨</div>
+    <div class="score-bar">
+      <div class="score-item stars"><span class="icon">⭐</span> <span id="starCount">0</span></div>
+      <div class="score-item streak"><span class="icon">🔥</span> <span id="streakCount">0</span></div>
+      <div class="score-item level"><span class="icon">🏆</span> <span id="levelNum">1</span></div>
+    </div>
+    <div class="global-diff" id="globalDiff">
+      <button class="active" data-range="10">1-10</button>
+      <button data-range="20">1-20</button>
+      <button data-range="50">1-50</button>
+      <button data-range="100">1-100</button>
+    </div>
+    <div class="nav">
+      <button class="active" data-panel="learn">📚 Learn</button>
+      <button data-panel="quiz">🔀 Quiz</button>
+      <button data-panel="type">✏️ Type It</button>
+      <button data-panel="match">🎮 Match</button>
+      <button data-panel="lesson">🎓 Lesson</button>
+      <button data-panel="facts">💡 Facts</button>
+    </div>
+  </div>
+
+  <!-- LEARN -->
+  <div class="panel active" id="panel-learn">
+    <div class="chart-scroll"><div class="chart-grid" id="chartGrid"></div></div>
+  </div>
+
+  <!-- QUIZ -->
+  <div class="panel" id="panel-quiz">
+    <div class="quiz-area">
+      <div class="progress-wrap"><div class="progress-bar" id="quizProgress" style="width:0%"></div></div>
+      <div class="quiz-prompt">
+        <div class="label">What is this in Roman numerals?</div>
+        <div class="number" id="quizNumber">7</div>
+      </div>
+      <div class="choices" id="quizChoices"></div>
+      <div class="feedback" id="quizFeedback"></div>
+      <button class="next-btn" id="quizNext" style="display:none">Next →</button>
+    </div>
+  </div>
+
+  <!-- TYPE -->
+  <div class="panel" id="panel-type">
+    <div class="type-area">
+      <div class="progress-wrap"><div class="progress-bar" id="typeProgress" style="width:0%"></div></div>
+      <div class="quiz-prompt">
+        <div class="label">Type the Roman numeral:</div>
+        <div class="number" id="typeNumber">3</div>
+      </div>
+      <input type="text" class="type-input" id="typeInput" placeholder="?" maxlength="10" autocomplete="off" autocapitalize="characters">
+      <button class="submit-btn" id="typeSubmit">Check!</button>
+      <div class="feedback" id="typeFeedback"></div>
+      <button class="next-btn" id="typeNext" style="display:none">Next →</button>
+    </div>
+  </div>
+
+  <!-- MATCH -->
+  <div class="panel" id="panel-match">
+    <div class="match-area">
+      <div class="match-inst">Tap a number, then its Roman numeral!</div>
+      <div class="match-grid">
+        <div class="match-column"><h3>Numbers</h3><div id="matchNumbers"></div></div>
+        <div class="match-column"><h3>Roman</h3><div id="matchRomans"></div></div>
+      </div>
+      <div class="match-footer">
+        <div class="feedback" id="matchFeedback"></div>
+        <button class="next-btn" id="matchNew">New Game 🎮</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LESSON -->
+  <div class="panel" id="panel-lesson">
+    <div class="lesson-area">
+      <div class="lesson-progress" id="lessonProgress"></div>
+      <div class="lesson-scroll" id="lessonContent"></div>
+      <div class="lesson-nav" id="lessonNav"></div>
+    </div>
+  </div>
+
+  <!-- FACTS -->
+  <div class="panel" id="panel-facts">
+    <div class="facts-scroll">
+      <div class="facts-area">
+        <div class="fact-card"><h3>🚀 Zero Has No Roman Numeral!</h3><p>The ancient Romans didn't have a symbol for zero. They started counting from 1!</p></div>
+        <div class="fact-card"><h3>🏛 Only 5 Letters Needed</h3><p>For 1 to 100: <b>I</b>=1, <b>V</b>=5, <b>X</b>=10, <b>L</b>=50, <b>C</b>=100.</p></div>
+        <div class="fact-card"><h3>🔧 The Subtraction Trick</h3><p>Small before big = subtract! IV=4, IX=9, XL=40, XC=90.</p></div>
+        <div class="fact-card"><h3>🏢 Still Used Today!</h3><p>Clocks, movie credits (Episode IV), buildings, Super Bowl numbers, watches!</p></div>
+        <div class="fact-card"><h3>👥 Build Any Number</h3><p>Tens first, then ones. 87 = 80+7 = LXXX+VII = <b>LXXXVII</b>!</p></div>
+        <div class="fact-card"><h3>💡 Fun Pattern</h3><p>3=III, 4=IV, 5=V, 6=VI. VI is IV backwards!</p></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const RV = [[100,'C'],[90,'XC'],[80,'LXXX'],[70,'LXX'],[60,'LX'],[50,'L'],[40,'XL'],[30,'XXX'],[20,'XX'],[10,'X'],[9,'IX'],[8,'VIII'],[7,'VII'],[6,'VI'],[5,'V'],[4,'IV'],[3,'III'],[2,'II'],[1,'I']];
+function toRoman(n) {
+  if (n===0) return 'N/A'; if (n<0||n>100) return '';
+  let r=''; for(const[v,s]of RV){while(n>=v){r+=s;n-=v;}} return r;
+}
+
+let stars=0, streak=0, level=1, gameRange=10;
+let quizCount=0, quizTotal=10, currentQuiz=null, currentType=null;
+let matchSelected=null, matchPairs=0, matchTotal=0;
+let activePanel='learn';
+
+document.querySelectorAll('.nav button').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    activePanel=btn.dataset.panel;
+    document.getElementById('panel-'+btn.dataset.panel).classList.add('active');
+    if(btn.dataset.panel==='match') startMatch();
+    if(btn.dataset.panel==='lesson'){lessonIndex=0;lessonDone=false;renderLesson();}
+  });
+});
+document.querySelectorAll('#globalDiff button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('#globalDiff button').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active'); gameRange=parseInt(b.dataset.range);
+    if(activePanel==='learn') buildChart(gameRange);
+    if(activePanel==='quiz') startQuiz();
+    if(activePanel==='type') startType();
+  });
+});
+
+function buildChart(max){
+  const g=document.getElementById('chartGrid'); g.innerHTML='';
+  for(let i=1;i<=max;i++){
+    const c=document.createElement('div'); c.className='chart-card';
+    if([4,9,10,40,44,49,90,99,100].includes(i))c.style.borderColor='var(--accent)';
+    c.innerHTML=`<div class="arabic">${i}</div><div class="roman">${toRoman(i)}</div>`; g.appendChild(c);
+  }
+}
+buildChart(10);
+
+function startQuiz(){quizCount=0;document.getElementById('quizProgress').style.width='0%';nextQuiz();}
+function nextQuiz(){
+  const n=Math.floor(Math.random()*gameRange)+1; currentQuiz=n;
+  document.getElementById('quizNumber').textContent=n;
+  document.getElementById('quizFeedback').textContent='';
+  document.getElementById('quizFeedback').className='feedback';
+  document.getElementById('quizNext').style.display='none';
+  const correct=toRoman(n), choices=new Set([correct]);
+  while(choices.size<4){choices.add(toRoman(Math.floor(Math.random()*gameRange)+1));const w=mutate(correct);if(w&&w!==correct)choices.add(w);}
+  const cont=document.getElementById('quizChoices'); cont.innerHTML='';
+  [...choices].sort(()=>Math.random()-0.5).forEach(c=>{
+    const b=document.createElement('button'); b.className='choice-btn'; b.textContent=c;
+    b.addEventListener('click',()=>checkQuiz(b,c,correct)); cont.appendChild(b);
+  });
+}
+function mutate(r){
+  const m=[]; if(r.length>1)for(let i=0;i<r.length-1;i++){const s=r.slice(0,i)+r[i+1]+r[i]+r.slice(i+2);if(s!==r)m.push(s);}
+  if(r.length>1)m.push(r.slice(0,-1)); m.push(r+'I'); return m[Math.floor(Math.random()*m.length)]||null;
+}
+function checkQuiz(btn,chosen,correct){
+  document.querySelectorAll('#quizChoices .choice-btn').forEach(b=>b.disabled=true);
+  if(chosen===correct){btn.classList.add('correct');document.getElementById('quizFeedback').textContent='Correct! 🎉';document.getElementById('quizFeedback').className='feedback correct';addStars(1);updateStreak(true);}
+  else{btn.classList.add('wrong');document.querySelectorAll('#quizChoices .choice-btn').forEach(b=>{if(b.textContent===correct)b.classList.add('correct');});document.getElementById('quizFeedback').textContent=`Answer: ${correct}`;document.getElementById('quizFeedback').className='feedback wrong';updateStreak(false);}
+  quizCount++; document.getElementById('quizProgress').style.width=Math.min(100,(quizCount/quizTotal)*100)+'%';
+  const nb=document.getElementById('quizNext');
+  nb.textContent=quizCount>=quizTotal?'New Round! 🎉':'Next →'; nb.style.display='inline-block';
+  nb.onclick=()=>{if(quizCount>=quizTotal)quizCount=0;nextQuiz();};
+}
+
+function startType(){nextType();}
+function nextType(){
+  const n=Math.floor(Math.random()*gameRange)+1; currentType=n;
+  document.getElementById('typeNumber').textContent=n;
+  const inp=document.getElementById('typeInput'); inp.value='';inp.className='type-input';inp.disabled=false;inp.focus();
+  document.getElementById('typeFeedback').textContent='';document.getElementById('typeFeedback').className='feedback';
+  document.getElementById('typeNext').style.display='none';document.getElementById('typeSubmit').style.display='inline-block';
+}
+document.getElementById('typeSubmit').addEventListener('click',checkType);
+document.getElementById('typeInput').addEventListener('keydown',e=>{if(e.key==='Enter')checkType();});
+function checkType(){
+  const inp=document.getElementById('typeInput'),a=inp.value.trim().toUpperCase(),c=toRoman(currentType);
+  if(!a)return; inp.disabled=true; document.getElementById('typeSubmit').style.display='none';
+  if(a===c){inp.className='type-input correct';document.getElementById('typeFeedback').textContent='Perfect! 🎉';document.getElementById('typeFeedback').className='feedback correct';addStars(2);updateStreak(true);}
+  else{inp.className='type-input wrong';document.getElementById('typeFeedback').textContent=`Answer: ${c}`;document.getElementById('typeFeedback').className='feedback wrong';updateStreak(false);}
+  const nb=document.getElementById('typeNext'); nb.style.display='inline-block'; nb.onclick=nextType;
+}
+
+function startMatch(){
+  matchSelected=null;matchPairs=0;matchTotal=4;
+  document.getElementById('matchFeedback').textContent='';document.getElementById('matchFeedback').className='feedback';
+  const pool=[]; for(let i=1;i<=20;i++)pool.push(i);
+  for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
+  const nums=pool.slice(0,matchTotal);
+  const nc=document.getElementById('matchNumbers'),rc=document.getElementById('matchRomans'); nc.innerHTML='';rc.innerHTML='';
+  [...nums].sort((a,b)=>a-b).forEach(n=>{const d=document.createElement('div');d.className='match-item';d.textContent=n;d.dataset.type='number';d.dataset.value=n;d.addEventListener('click',()=>selMatch(d));nc.appendChild(d);});
+  [...nums].sort(()=>Math.random()-0.5).forEach(n=>{const d=document.createElement('div');d.className='match-item';d.textContent=toRoman(n);d.dataset.type='roman';d.dataset.value=n;d.addEventListener('click',()=>selMatch(d));rc.appendChild(d);});
+}
+function selMatch(el){
+  if(el.classList.contains('matched'))return;
+  if(!matchSelected){matchSelected=el;el.classList.add('selected');return;}
+  if(el.dataset.type===matchSelected.dataset.type){matchSelected.classList.remove('selected');matchSelected=el;el.classList.add('selected');return;}
+  if(el.dataset.value===matchSelected.dataset.value){
+    el.classList.add('matched');matchSelected.classList.remove('selected');matchSelected.classList.add('matched');matchSelected=null;
+    matchPairs++;addStars(2);updateStreak(true);
+    if(matchPairs>=matchTotal){document.getElementById('matchFeedback').textContent='All matched! 🎉';document.getElementById('matchFeedback').className='feedback correct';spawnConfetti();}
+  } else {
+    el.classList.add('wrong-match');matchSelected.classList.add('wrong-match');const prev=matchSelected;matchSelected=null;updateStreak(false);
+    setTimeout(()=>{el.classList.remove('wrong-match');prev.classList.remove('wrong-match','selected');},500);
+  }
+}
+document.getElementById('matchNew').addEventListener('click',startMatch);
+
+function addStars(n){stars+=n;document.getElementById('starCount').textContent=stars;const nl=Math.floor(stars/20)+1;if(nl>level){level=nl;document.getElementById('levelNum').textContent=level;spawnConfetti();}}
+function updateStreak(ok){streak=ok?streak+1:0;document.getElementById('streakCount').textContent=streak;}
+function spawnConfetti(){
+  const cs=['#FF6B35','#4ECDC4','#FFE66D','#A78BFA','#F472B6','#34D399','#60A5FA'];
+  for(let i=0;i<30;i++){const p=document.createElement('div');p.className='confetti-piece';p.style.left=Math.random()*100+'vw';p.style.top='-10px';p.style.background=cs[Math.floor(Math.random()*cs.length)];p.style.borderRadius=Math.random()>0.5?'50%':'2px';p.style.width=(5+Math.random()*6)+'px';p.style.height=(5+Math.random()*6)+'px';document.body.appendChild(p);const x=(Math.random()-0.5)*200,d=1200+Math.random()*1200;p.animate([{transform:'translate(0,0) rotate(0deg)',opacity:1},{transform:`translate(${x}px,${window.innerHeight+20}px) rotate(${360+Math.random()*360}deg)`,opacity:0}],{duration:d,easing:'cubic-bezier(0.25,0.46,0.45,0.94)'}).onfinish=()=>p.remove();}
+}
+
+// LESSONS
+const LESSONS=[
+  {title:"The 5 Symbols",content:`<p>You only need <b>5 letters</b> for numbers 1 to 100:</p><div class="symbol-grid"><div class="symbol-box"><div class="roman-letter">I</div><div class="roman-val">= 1</div></div><div class="symbol-box"><div class="roman-letter">V</div><div class="roman-val">= 5</div></div><div class="symbol-box"><div class="roman-letter">X</div><div class="roman-val">= 10</div></div><div class="symbol-box"><div class="roman-letter">L</div><div class="roman-val">= 50</div></div><div class="symbol-box"><div class="roman-letter">C</div><div class="roman-val">= 100</div></div></div><div class="rule">💡 C = 100 from <b>C</b>entum, Latin for hundred!</div>`,practice:{q:"Which letter means 10?",choices:["V","X","L","I"],a:"X"}},
+  {title:"Rule #1: Bigger → Smaller = Add",content:`<p>When symbols go <b>bigger to smaller</b>, just add:</p><div class="example"><b>III</b> = 1+1+1 = <b>3</b></div><div class="example"><b>VII</b> = 5+1+1 = <b>7</b></div><div class="example"><b>XV</b> = 10+5 = <b>15</b></div><div class="rule">📌 Bigger or equal left → right? Just ADD!</div>`,practice:{q:"What does XII equal?",choices:["10","12","13","30"],a:"12"}},
+  {title:"Rule #2: Subtraction Trick",content:`<p>Small before big = <b>subtract</b>!</p><div class="example"><b>IV</b> = 5−1 = <b>4</b></div><div class="example"><b>IX</b> = 10−1 = <b>9</b></div><div class="example"><b>XIV</b> = 10+(5−1) = <b>14</b></div><div class="rule">📌 Only I before V/X, and X before L/C.</div>`,practice:{q:"What does IX equal?",choices:["11","19","9","6"],a:"9"}},
+  {title:"Why IX, Not VIIII?",content:`<p>Why not <b>VIIII</b> for 9? One rule:</p><div class="rule">📏 Never repeat the same symbol more than <b>3 times</b>!</div><div class="example">✅ <b>III</b>=3 (three I's — OK!)</div><div class="example">❌ <b>IIII</b> = never (too many!)</div><div class="example">✅ <b>VIII</b>=8 (three I's — OK!)</div><div class="example">❌ <b>VIIII</b> = never (four I's!)</div><p>So 4=<b>IV</b>, 9=<b>IX</b>, 40=<b>XL</b> (not XXXX).</p><div class="rule">🔑 4 copies? Use subtraction!</div>`,practice:{q:"Why not XXXX for 40?",choices:["Too long","Can't repeat more than 3 times","X means 40","Romans forgot"],a:"Can't repeat more than 3 times"}},
+  {title:"Counting 1–10",content:`<p>Let's count:</p><div class="example"><b>I</b>=1 <b>II</b>=2 <b>III</b>=3 <b>IV</b>=4 ⬅ subtract!</div><div class="example"><b>V</b>=5 <b>VI</b>=6 <b>VII</b>=7 <b>VIII</b>=8</div><div class="example"><b>IX</b>=9 ⬅ subtract! <b>X</b>=10</div><div class="rule">🔍 Only 4 and 9 use subtraction!</div>`,practice:{q:"How do you write 8?",choices:["VII","VIII","IX","VVIII"],a:"VIII"}},
+  {title:"The Tens: 10–100",content:`<p>Repeat <b>X</b>(10) or combine with <b>L</b>(50) and <b>C</b>(100):</p><div class="example"><b>X</b>=10 <b>XX</b>=20 <b>XXX</b>=30</div><div class="example"><b>XL</b>=40 ⬅ 50−10 <b>L</b>=50 <b>LX</b>=60</div><div class="example"><b>LXX</b>=70 <b>LXXX</b>=80 <b>XC</b>=90 ⬅ 100−10</div><div class="example"><b>C</b>=100</div>`,practice:{q:"What does LXX equal?",choices:["70","80","57","75"],a:"70"}},
+  {title:"Build Any Number!",content:`<p><b>Tens first, then ones.</b> Together!</p><div class="build-steps"><div class="build-step"><span class="step-num">🔢</span><span class="step-text">27 = 20+7</span></div><div class="build-step"><span class="step-num">1️⃣</span><span class="step-text">20 = XX</span><span class="step-result">XX</span></div><div class="build-step"><span class="step-num">2️⃣</span><span class="step-text">7 = VII</span><span class="step-result">VII</span></div><div class="build-step"><span class="step-num">✅</span><span class="step-text">Together:</span><span class="step-result">XXVII</span></div></div><div class="build-steps"><div class="build-step"><span class="step-num">🔢</span><span class="step-text">49 = 40+9</span></div><div class="build-step"><span class="step-num">1️⃣</span><span class="step-text">40 = XL</span><span class="step-result">XL</span></div><div class="build-step"><span class="step-num">2️⃣</span><span class="step-text">9 = IX</span><span class="step-result">IX</span></div><div class="build-step"><span class="step-num">✅</span><span class="step-text">Together:</span><span class="step-result">XLIX</span></div></div>`,practice:{q:"How do you write 36?",choices:["XXXVI","XXVI","XXXIV","XLVI"],a:"XXXVI"}},
+  {title:"You Did It!",content:`<p>One more: <b>94</b></p><div class="build-steps"><div class="build-step"><span class="step-num">🔢</span><span class="step-text">94 = 90+4</span></div><div class="build-step"><span class="step-num">1️⃣</span><span class="step-text">90 = XC</span><span class="step-result">XC</span></div><div class="build-step"><span class="step-num">2️⃣</span><span class="step-text">4 = IV</span><span class="step-result">IV</span></div><div class="build-step"><span class="step-num">✅</span><span class="step-text">Together:</span><span class="step-result">XCIV</span></div></div><div class="rule">🏆 Kira, you now know ANY number from 1 to 100 in Roman numerals!</div>`,practice:{q:"How do you write 44?",choices:["XLIV","XXIV","IL","XLI"],a:"XLIV"}}
+];
+
+let lessonIndex=0, lessonDone=false;
+function renderLesson(){
+  const prog=document.getElementById('lessonProgress'),cont=document.getElementById('lessonContent'),nav=document.getElementById('lessonNav');
+  prog.innerHTML='';
+  LESSONS.forEach((_,i)=>{const d=document.createElement('div');d.className='lesson-dot';if(i===lessonIndex)d.classList.add('active');else if(i<lessonIndex)d.classList.add('done');d.textContent=i+1;d.addEventListener('click',()=>{if(i<=lessonIndex){lessonIndex=i;lessonDone=false;renderLesson();}});prog.appendChild(d);});
+  if(lessonIndex>=LESSONS.length){
+    cont.innerHTML=`<div class="lesson-card"><div class="lesson-complete"><h2>🎉 Lesson Complete!</h2><p>Now try Quiz, Type It, or Match!</p><button class="next-btn" onclick="lessonIndex=0;lessonDone=false;renderLesson()" style="margin-top:12px">Start Over 🔄</button></div></div>`;
+    nav.innerHTML=''; spawnConfetti(); addStars(5); return;
+  }
+  const L=LESSONS[lessonIndex];
+  cont.innerHTML=`<div class="lesson-card"><h2>Lesson ${lessonIndex+1}: ${L.title}</h2>${L.content}<div class="lesson-practice" id="lessonPractice"><h3>Quick Check!</h3><div class="prompt">${L.practice.q}</div><div class="choices">${L.practice.choices.map(c=>`<button class="choice-btn" data-answer="${c}">${c}</button>`).join('')}</div><div class="feedback" id="lessonFeedback" style="margin-top:6px"></div></div></div>`;
+  const pa=document.getElementById('lessonPractice');
+  pa.querySelectorAll('.choice-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      if(lessonDone)return;
+      const ok=btn.dataset.answer===L.practice.a;
+      pa.querySelectorAll('.choice-btn').forEach(b=>{b.disabled=true;if(b.dataset.answer===L.practice.a)b.classList.add('correct');});
+      if(!ok)btn.classList.add('wrong');
+      document.getElementById('lessonFeedback').textContent=ok?'Correct! 🎉':`Answer: ${L.practice.a}`;
+      document.getElementById('lessonFeedback').className='feedback '+(ok?'correct':'wrong');
+      lessonDone=true; if(ok)addStars(1);
+      const nb=document.getElementById('lessonNextBtn');nb.style.opacity='1';nb.style.cursor='pointer';
+      nb.textContent=lessonIndex===LESSONS.length-1?'Finish! 🎉':'Next Lesson →';
+      nb.addEventListener('click',()=>{lessonIndex++;lessonDone=false;renderLesson();});
+    });
+  });
+  nav.innerHTML=`<button class="restart-btn" onclick="lessonIndex=0;lessonDone=false;renderLesson()" ${lessonIndex===0?'style="visibility:hidden"':''}>← Restart</button><button class="next-btn" id="lessonNextBtn" style="opacity:0.5;cursor:default">Answer first!</button>`;
+}
+
+startQuiz(); startType();
+</script>
+</body>
+</html>
