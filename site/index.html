@@ -298,6 +298,41 @@
 
   .confetti-piece { position: fixed; z-index: 1000; pointer-events: none; }
 
+  /* Round-end modal */
+  .round-modal {
+    position: fixed; inset: 0; z-index: 900;
+    background: rgba(0,0,0,0.45);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.25s;
+  }
+  .round-modal.show { opacity: 1; pointer-events: auto; }
+  .round-modal-inner {
+    background: var(--card); border-radius: 16px; padding: 28px 32px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18); text-align: center;
+    max-width: 340px; width: 90%;
+  }
+  .round-modal-inner h2 {
+    font-family: 'Fredoka One', cursive; font-size: 1.5rem; color: var(--primary); margin-bottom: 6px;
+  }
+  .round-modal-inner .score-display {
+    font-family: 'Fredoka One', cursive; font-size: 3rem; color: var(--primary); margin: 8px 0;
+  }
+  .round-modal-inner .score-msg {
+    font-size: 0.95rem; color: var(--text-light); margin-bottom: 16px;
+  }
+  .round-modal-inner .modal-btns { display: flex; flex-direction: column; gap: 8px; }
+  .modal-btn {
+    font-family: 'Baloo 2', cursive; font-size: 1rem; font-weight: 700;
+    padding: 12px 20px; min-height: 48px; border: none; border-radius: 50px;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .modal-btn.primary { background: var(--primary); color: white; }
+  .modal-btn.primary:hover { background: var(--primary-dark); }
+  .modal-btn.secondary { background: var(--secondary); color: white; }
+  .modal-btn.secondary:hover { background: #3DBEB5; }
+  .modal-btn.outline { background: var(--card); color: var(--text-light); border: 2px solid #E8E8E8; }
+  .modal-btn.outline:hover { border-color: var(--purple); color: var(--purple); }
+
   @media (max-width: 600px) {
     .container { padding: 2px 6px; }
     .top-bar { padding: 4px 6px 6px; }
@@ -434,6 +469,16 @@
   </div>
 </div>
 
+<!-- Round-end modal -->
+<div class="round-modal" id="roundModal">
+  <div class="round-modal-inner">
+    <h2 id="modalTitle">Round Complete!</h2>
+    <div class="score-display" id="modalScore">0/10</div>
+    <div class="score-msg" id="modalMsg"></div>
+    <div class="modal-btns" id="modalBtns"></div>
+  </div>
+</div>
+
 <script>
 const RV = [[100,'C'],[90,'XC'],[80,'LXXX'],[70,'LXX'],[60,'LX'],[50,'L'],[40,'XL'],[30,'XXX'],[20,'XX'],[10,'X'],[9,'IX'],[8,'VIII'],[7,'VII'],[6,'VI'],[5,'V'],[4,'IV'],[3,'III'],[2,'II'],[1,'I']];
 function toRoman(n) {
@@ -442,9 +487,10 @@ function toRoman(n) {
 }
 
 let stars=0, streak=0, level=1, gameRange=10;
-let quizCount=0, quizTotal=10, currentQuiz=null, currentType=null;
+let quizCount=0, quizTotal=10, quizScore=0, currentQuiz=null, currentType=null;
 let matchSelected=null, matchPairs=0, matchTotal=0;
 let activePanel='learn';
+const DIFF_LEVELS=[10,20,50,100];
 
 document.querySelectorAll('.nav button').forEach(btn=>{
   btn.addEventListener('click',()=>{
@@ -478,7 +524,7 @@ function buildChart(max){
 buildChart(10);
 
 let quizUsed=new Set();
-function startQuiz(){quizCount=0;quizUsed=new Set();document.getElementById('quizProgress').style.width='0%';nextQuiz();}
+function startQuiz(){quizCount=0;quizScore=0;quizUsed=new Set();document.getElementById('quizProgress').style.width='0%';nextQuiz();}
 function nextQuiz(){
   let n;
   if(quizUsed.size>=gameRange||quizCount>=quizTotal){quizUsed=new Set();}
@@ -503,13 +549,38 @@ function mutate(r){
 }
 function checkQuiz(btn,chosen,correct){
   document.querySelectorAll('#quizChoices .choice-btn').forEach(b=>b.disabled=true);
-  if(chosen===correct){btn.classList.add('correct');document.getElementById('quizFeedback').textContent='Correct! 🎉';document.getElementById('quizFeedback').className='feedback correct';addStars(1);updateStreak(true);}
+  if(chosen===correct){btn.classList.add('correct');document.getElementById('quizFeedback').textContent='Correct! 🎉';document.getElementById('quizFeedback').className='feedback correct';addStars(1);updateStreak(true);quizScore++;}
   else{btn.classList.add('wrong');document.querySelectorAll('#quizChoices .choice-btn').forEach(b=>{if(b.textContent===correct)b.classList.add('correct');});document.getElementById('quizFeedback').textContent=`Answer: ${correct}`;document.getElementById('quizFeedback').className='feedback wrong';updateStreak(false);}
   quizCount++; document.getElementById('quizProgress').style.width=Math.min(100,(quizCount/quizTotal)*100)+'%';
-  const nb=document.getElementById('quizNext');
-  nb.textContent=quizCount>=quizTotal?'New Round! 🎉':'Next →'; nb.style.display='inline-block';
-  nb.onclick=()=>{quizCount=0;quizUsed=new Set();nextQuiz();};
+  if(quizCount>=quizTotal){
+    setTimeout(()=>showRoundModal(quizScore,quizTotal),600);
+  } else {
+    const nb=document.getElementById('quizNext'); nb.textContent='Next →'; nb.style.display='inline-block';
+    nb.onclick=()=>nextQuiz();
+  }
 }
+function showRoundModal(score,total){
+  const modal=document.getElementById('roundModal');
+  const diffIdx=DIFF_LEVELS.indexOf(gameRange);
+  const hasHigher=diffIdx<DIFF_LEVELS.length-1;
+  const shouldBump=score>8&&hasHigher;
+  document.getElementById('modalTitle').textContent=score>=9?'Amazing! 🌟':score>=7?'Great Job! 🎉':'Nice Try! 💪';
+  document.getElementById('modalScore').textContent=`${score}/${total}`;
+  const msgs=['Keep practicing!','You got this!','Almost there!','Good effort!','Solid work!','Nice going!','Well done!','Great job!','Almost perfect!','Perfect score! 🏆'];
+  document.getElementById('modalMsg').textContent=msgs[score]||'Ready for another round?';
+  const btns=document.getElementById('modalBtns'); btns.innerHTML='';
+  if(shouldBump){
+    const higher=DIFF_LEVELS[diffIdx+1];
+    const b=document.createElement('button'); b.className='modal-btn secondary'; b.textContent=`Level up: 1-${higher} 🔥`;
+    b.onclick=()=>{hideRoundModal();gameRange=higher;document.querySelectorAll('#globalDiff button').forEach(x=>{x.classList.toggle('active',parseInt(x.dataset.range)===gameRange);});startQuiz();};
+    btns.appendChild(b);
+  }
+  const b2=document.createElement('button'); b2.className='modal-btn primary'; b2.textContent='Try Again';
+  b2.onclick=()=>{hideRoundModal();startQuiz();};
+  btns.appendChild(b2);
+  modal.classList.add('show');
+}
+function hideRoundModal(){document.getElementById('roundModal').classList.remove('show');}
 
 let typeUsed=new Set();
 function startType(){typeUsed=new Set();nextType();}
